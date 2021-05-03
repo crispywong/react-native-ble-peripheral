@@ -110,6 +110,11 @@ public class RNBLEModule extends ReactContextBaseJavaModule{
         UUID CHAR_UUID = UUID.fromString(uuid);
         Log.d("RNBLEModule", "Properties: " + String.valueOf(properties));
         Log.d("RNBLEModule", "Permissions: " + String.valueOf(permissions));
+
+        // BluetoothGattCharacteristic tempChar = new BluetoothGattCharacteristic(
+        //     CHAR_UUID,
+        //     properties,
+        //     permissions);
         BluetoothGattCharacteristic tempChar = new BluetoothGattCharacteristic(
             CHAR_UUID,
             BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE | BluetoothGattCharacteristic.PROPERTY_NOTIFY,
@@ -142,7 +147,8 @@ public class RNBLEModule extends ReactContextBaseJavaModule{
         public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset,
                                                 BluetoothGattCharacteristic characteristic) {
             super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
-            Log.d("RNBLEModule", "onCharacteristicReadRequest");
+                        Log.d("RNBLEModule", "onCharacteristicReadRequest");
+
             if (offset != 0) {
                 mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_INVALID_OFFSET, offset,
                         /* value (optional) */ null);
@@ -155,7 +161,8 @@ public class RNBLEModule extends ReactContextBaseJavaModule{
         @Override
         public void onNotificationSent(BluetoothDevice device, int status) {
             super.onNotificationSent(device, status);
-            Log.d("RNBLEModule", "onNotificationSent");
+                                    Log.d("RNBLEModule", "onNotificationSent");
+
         }
 
         @Override
@@ -165,11 +172,13 @@ public class RNBLEModule extends ReactContextBaseJavaModule{
             super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite,
                     responseNeeded, offset, value);
             Log.d("RNBLEModule", "onCharacteristicWriteRequest:");
+
             characteristic.setValue(value);
             WritableMap map = Arguments.createMap();
             WritableArray data = Arguments.createArray();
             for (byte b : value) {
-                Log.d("RNBLEModule", "onCharacteristicWriteRequest:" + String.valueOf((int) b));
+                            Log.d("RNBLEModule", "onCharacteristicWriteRequest:" + String.valueOf((int) b));
+
                 data.pushInt((int) b);
             }
             Log.d("RNBLEModule", "onCharacteristicWriteRequestsss:" + characteristic.getUuid().toString());
