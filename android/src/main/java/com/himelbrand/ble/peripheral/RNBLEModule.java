@@ -22,7 +22,7 @@ import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.ParcelUuid;
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -52,6 +52,9 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableArray;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
+import com.facebook.react.modules.core.RCTNativeAppEventEmitter;
+
 
 
 
@@ -105,7 +108,12 @@ public class RNBLEModule extends ReactContextBaseJavaModule{
     @ReactMethod
     public void addCharacteristicToService(String serviceUUID, String uuid, Integer permissions, Integer properties) {
         UUID CHAR_UUID = UUID.fromString(uuid);
-        BluetoothGattCharacteristic tempChar = new BluetoothGattCharacteristic(CHAR_UUID, properties, permissions);
+        Log.d("RNBLEModule", "Properties: " + String.valueOf(properties));
+        Log.d("RNBLEModule", "Permissions: " + String.valueOf(permissions));
+        BluetoothGattCharacteristic tempChar = new BluetoothGattCharacteristic(
+            CHAR_UUID,
+            BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE | BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+            BluetoothGattCharacteristic.PERMISSION_READ | BluetoothGattCharacteristic.PERMISSION_WRITE);
         this.servicesMap.get(serviceUUID).addCharacteristic(tempChar);
     }
 
@@ -113,12 +121,18 @@ public class RNBLEModule extends ReactContextBaseJavaModule{
         @Override
         public void onConnectionStateChange(BluetoothDevice device, final int status, int newState) {
             super.onConnectionStateChange(device, status, newState);
+            Log.d("RNBLEModule", "onConnectionStateChange:" + String.valueOf(status));
+            WritableMap params = Arguments.createMap();
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 if (newState == BluetoothGatt.STATE_CONNECTED) {
                     mBluetoothDevices.add(device);
                 } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
                     mBluetoothDevices.remove(device);
                 }
+                params.putInt("status", newState);
+                params.putString("device", device.toString());
+                sendEvent("stateChanged", params);
+
             } else {
                 mBluetoothDevices.remove(device);
             }
@@ -128,6 +142,7 @@ public class RNBLEModule extends ReactContextBaseJavaModule{
         public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset,
                                                 BluetoothGattCharacteristic characteristic) {
             super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
+            Log.d("RNBLEModule", "onCharacteristicReadRequest");
             if (offset != 0) {
                 mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_INVALID_OFFSET, offset,
                         /* value (optional) */ null);
@@ -140,6 +155,7 @@ public class RNBLEModule extends ReactContextBaseJavaModule{
         @Override
         public void onNotificationSent(BluetoothDevice device, int status) {
             super.onNotificationSent(device, status);
+            Log.d("RNBLEModule", "onNotificationSent");
         }
 
         @Override
@@ -148,14 +164,21 @@ public class RNBLEModule extends ReactContextBaseJavaModule{
                                                  int offset, byte[] value) {
             super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite,
                     responseNeeded, offset, value);
+            Log.d("RNBLEModule", "onCharacteristicWriteRequest:");
             characteristic.setValue(value);
             WritableMap map = Arguments.createMap();
             WritableArray data = Arguments.createArray();
             for (byte b : value) {
+                Log.d("RNBLEModule", "onCharacteristicWriteRequest:" + String.valueOf((int) b));
                 data.pushInt((int) b);
             }
+            Log.d("RNBLEModule", "onCharacteristicWriteRequestsss:" + characteristic.getUuid().toString());
+            map.putString("characteristic", characteristic.getUuid().toString());
             map.putArray("data", data);
             map.putString("device", device.toString());
+            // Log.d("RNBLEModule", "onCharacteristicWriteRequest1:" + data );
+            Log.d("RNBLEModule", "done receiving" );
+            sendEvent("onCharacteristicWriteRequest", map);
             if (responseNeeded) {
                 mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
             }
@@ -212,6 +235,13 @@ public class RNBLEModule extends ReactContextBaseJavaModule{
         advertiser.startAdvertising(settings, data, advertisingCallback);
 
     }
+
+    public void sendEvent(String eventName, WritableMap params) {
+        Log.d("RNBLEModule", "eventName: " + eventName);
+        getReactApplicationContext().getJSModule(RCTNativeAppEventEmitter.class).emit(eventName, params);
+
+    }
+
     @ReactMethod
     public void stop(){
         if (mGattServer != null) {
